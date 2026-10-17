@@ -1,0 +1,58 @@
+# qwewqa/nse-test-site: .github/workflows/deploy.yml
+name: Deploy test site
+
+on:
+    workflow_dispatch:
+        inputs:
+            ref: { type: string, required: true } # branch or commit of the editor repo
+            force: { type: boolean, default: false } # allow a ref that doesn't descend from the deployed build
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: pages
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deploy.outputs.page_url }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  repository: qwewqa/next-sekai-editor-experiments
+                  ref: ${{ inputs.ref }}
+                  fetch-depth: 0
+                  persist-credentials: false
+            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with: { node-version-file: .node-version }
+            - name: Roll forward only
+              # an older build would hide the testers' work (4.9.3); 404 means nothing is deployed yet
+              if: ${{ !inputs.force }}
+              run: |
+                  code=$(curl -sS -o "$RUNNER_TEMP/deployed.json" -w '%{http_code}' https://test.nse.qwewqa.dev/release-manifest.json)
+                  if [ "$code" = 404 ]; then exit 0; fi
+                  [ "$code" = 200 ]
+                  git merge-base --is-ancestor "$(node -p "require(process.argv[1]).commit" "$RUNNER_TEMP/deployed.json")" HEAD
+            - run: npm ci
+            - run: npx playwright install --with-deps chromium # for test:production
+            # The same build steps as deploy-pages.yml, kept in step by hand. GITHUB_SHA is this repo's commit here, and
+            # a step's env: can't override GITHUB_* variables, so the scripts get the checked-out editor commit in the shell
+            - run: GITHUB_SHA=$(git rev-parse HEAD) npm run build:release
+              env:
+                  NSE_SITE: test
+                  PREVIEW_SKIN_URL: ${{ vars.PREVIEW_SKIN_URL }}
+                  PREVIEW_PARTICLE_URL: ${{ vars.PREVIEW_PARTICLE_URL }}
+            - run: npm run test:production
+            - run: GITHUB_SHA=$(git rev-parse HEAD) npm run check:release
+              env:
+                  NSE_SITE: test
+            - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+              with: { path: dist }
+            - id: deploy
+              uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
