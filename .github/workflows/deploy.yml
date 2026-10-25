@@ -46,12 +46,17 @@ jobs:
             - run: GITHUB_SHA=$(git rev-parse HEAD) npm run build:release
               env:
                   NSE_SITE: test
+                  # usage statistics to the production server, under this site's own website id (docs/analytics.md)
+                  NSE_ANALYTICS_ORIGIN: ${{ vars.ANALYTICS_ORIGIN }}
+                  NSE_ANALYTICS_WEBSITE: ${{ vars.ANALYTICS_WEBSITE_TEST }}
                   PREVIEW_SKIN_URL: ${{ vars.PREVIEW_SKIN_URL }}
                   PREVIEW_PARTICLE_URL: ${{ vars.PREVIEW_PARTICLE_URL }}
             - run: npm run test:production
             - run: GITHUB_SHA=$(git rev-parse HEAD) npm run check:release
               env:
                   NSE_SITE: test
+                  NSE_ANALYTICS_ORIGIN: ${{ vars.ANALYTICS_ORIGIN }}
+                  NSE_ANALYTICS_WEBSITE: ${{ vars.ANALYTICS_WEBSITE_TEST }}
             - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
               with: { path: dist }
             - id: deploy
