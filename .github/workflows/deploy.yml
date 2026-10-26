@@ -32,7 +32,7 @@ jobs:
             - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
               with: { node-version-file: .node-version }
             - name: Roll forward only
-              # an older build would hide the testers' work (4.9.3); 404 means nothing is deployed yet
+              # an older build would hide the testers' work; 404 means nothing is deployed yet
               if: ${{ !inputs.force }}
               run: |
                   code=$(curl -sS -o "$RUNNER_TEMP/deployed.json" -w '%{http_code}' https://test.nse.qwewqa.dev/release-manifest.json)
@@ -49,8 +49,6 @@ jobs:
                   # usage statistics to the production server, under this site's own website id (docs/analytics.md)
                   NSE_ANALYTICS_ORIGIN: ${{ vars.ANALYTICS_ORIGIN }}
                   NSE_ANALYTICS_WEBSITE: ${{ vars.ANALYTICS_WEBSITE_TEST }}
-                  PREVIEW_SKIN_URL: ${{ vars.PREVIEW_SKIN_URL }}
-                  PREVIEW_PARTICLE_URL: ${{ vars.PREVIEW_PARTICLE_URL }}
             - run: npm run test:production
             - run: GITHUB_SHA=$(git rev-parse HEAD) npm run check:release
               env:
